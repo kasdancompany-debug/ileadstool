@@ -2,6 +2,7 @@ import { LEAD_SOURCES } from "@/lib/leadSources";
 import { bkdConfigured, fetchMonthToDateCounts } from "@/lib/sources/bkd";
 import { ga4Configured, fetchGa4MonthToDate } from "@/lib/sources/ga4";
 import { instagramConfigured, fetchInstagramStats } from "@/lib/sources/instagram";
+import { facebookConfigured, fetchFacebookStats } from "@/lib/sources/facebook";
 import { readOverrides } from "@/lib/overrides";
 import type { DashboardData, LeadSourceRow, SourceStatus } from "@/lib/types";
 
@@ -96,7 +97,8 @@ export async function getDashboardData(): Promise<DashboardData> {
       socialMedia.push({
         platform: "Instagram",
         followers: ig.followers,
-        views: String(ig.viewsLast30Days),
+        views: String(ig.viewsThisMonth),
+        metricLabel: "Views",
         highestPerformingPost: ig.topPost?.caption || ig.topPost?.permalink || null,
         status: "live",
       });
@@ -106,6 +108,7 @@ export async function getDashboardData(): Promise<DashboardData> {
         platform: "Instagram",
         followers: manual?.followers ?? null,
         views: manual?.views ?? null,
+        metricLabel: "Views",
         highestPerformingPost: manual?.highestPerformingPost ?? null,
         status: "error",
       });
@@ -116,6 +119,41 @@ export async function getDashboardData(): Promise<DashboardData> {
       platform: "Instagram",
       followers: manual?.followers ?? null,
       views: manual?.views ?? null,
+      metricLabel: "Views",
+      highestPerformingPost: manual?.highestPerformingPost ?? null,
+      status: "manual",
+    });
+  }
+
+  if (facebookConfigured) {
+    try {
+      const fb = await fetchFacebookStats();
+      socialMedia.push({
+        platform: "Facebook",
+        followers: fb.followers,
+        views: String(fb.engagementThisMonth),
+        metricLabel: "Engagement",
+        highestPerformingPost: fb.topPost?.message || fb.topPost?.permalink || null,
+        status: "live",
+      });
+    } catch {
+      const manual = overrides.socialMedia["facebook"];
+      socialMedia.push({
+        platform: "Facebook",
+        followers: manual?.followers ?? null,
+        views: manual?.views ?? null,
+        metricLabel: "Engagement",
+        highestPerformingPost: manual?.highestPerformingPost ?? null,
+        status: "error",
+      });
+    }
+  } else {
+    const manual = overrides.socialMedia["facebook"];
+    socialMedia.push({
+      platform: "Facebook",
+      followers: manual?.followers ?? null,
+      views: manual?.views ?? null,
+      metricLabel: "Engagement",
       highestPerformingPost: manual?.highestPerformingPost ?? null,
       status: "manual",
     });

@@ -23,6 +23,7 @@ export interface SocialMediaRow {
   platform: string;
   followers: number | null;
   views: string | null;
+  metricLabel: string;
   highestPerformingPost: string | null;
   status: SourceStatus;
 }

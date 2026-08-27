@@ -204,19 +204,19 @@ export default function Dashboard() {
             )}
           </div>
 
-          <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-5">
-            <div className="mb-3 flex items-center gap-2">
-              <StatusDot status={data.socialMedia[0]?.status ?? "manual"} />
-              <h2 className="font-medium">Social Media</h2>
-            </div>
-            {data.socialMedia.map((s) => (
-              <dl key={s.platform} className="space-y-1 text-sm text-neutral-300">
+          {data.socialMedia.map((s) => (
+            <div key={s.platform} className="rounded-lg border border-neutral-800 bg-neutral-900 p-5">
+              <div className="mb-3 flex items-center gap-2">
+                <StatusDot status={s.status} />
+                <h2 className="font-medium">{s.platform}</h2>
+              </div>
+              <dl className="space-y-1 text-sm text-neutral-300">
                 <div className="flex justify-between">
-                  <dt className="text-neutral-500">{s.platform} followers</dt>
+                  <dt className="text-neutral-500">Followers</dt>
                   <dd>{num(s.followers)}</dd>
                 </div>
                 <div className="flex justify-between">
-                  <dt className="text-neutral-500">Views</dt>
+                  <dt className="text-neutral-500">{s.metricLabel}</dt>
                   <dd>{s.views ?? "—"}</dd>
                 </div>
                 <div className="flex justify-between gap-4">
@@ -224,13 +224,13 @@ export default function Dashboard() {
                   <dd className="truncate text-right">{s.highestPerformingPost ?? "—"}</dd>
                 </div>
               </dl>
-            ))}
-            {data.socialMedia[0]?.status !== "live" && (
-              <p className="mt-3 text-xs text-neutral-500">
-                Not connected to Instagram yet — showing manually entered values.
-              </p>
-            )}
-          </div>
+              {s.status !== "live" && (
+                <p className="mt-3 text-xs text-neutral-500">
+                  Not connected to {s.platform} yet — showing manually entered values.
+                </p>
+              )}
+            </div>
+          ))}
         </div>
 
         <p className="mt-6 text-xs text-neutral-600">
