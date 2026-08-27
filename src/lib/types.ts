@@ -19,12 +19,18 @@ export interface WebsiteTraffic {
   status: SourceStatus;
 }
 
+export interface TopPost {
+  text: string;
+  permalink: string | null;
+  stats: string;
+}
+
 export interface SocialMediaRow {
   platform: string;
   followers: number | null;
   views: string | null;
   metricLabel: string;
-  highestPerformingPost: string | null;
+  highestPerformingPost: TopPost | null;
   status: SourceStatus;
 }
 

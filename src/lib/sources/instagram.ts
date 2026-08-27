@@ -12,7 +12,13 @@ export const instagramConfigured = Boolean(IG_ACCOUNT_ID && IG_ACCESS_TOKEN);
 export interface InstagramStats {
   followers: number;
   viewsThisMonth: number;
-  topPost: { caption: string; permalink: string; views: number } | null;
+  topPost: {
+    caption: string;
+    permalink: string;
+    views: number;
+    likes: number;
+    comments: number;
+  } | null;
 }
 
 export async function fetchInstagramStats(): Promise<InstagramStats> {
@@ -30,7 +36,7 @@ export async function fetchInstagramStats(): Promise<InstagramStats> {
   const profile = await profileRes.json();
 
   const mediaRes = await fetch(
-    `https://graph.facebook.com/v21.0/${IG_ACCOUNT_ID}/media?fields=caption,permalink,timestamp,insights.metric(views)&since=${monthStart}&until=${nowUnix}&limit=100&access_token=${IG_ACCESS_TOKEN}`,
+    `https://graph.facebook.com/v21.0/${IG_ACCOUNT_ID}/media?fields=caption,permalink,timestamp,like_count,comments_count,insights.metric(views)&since=${monthStart}&until=${nowUnix}&limit=100&access_token=${IG_ACCESS_TOKEN}`,
     { cache: "no-store" }
   );
   if (!mediaRes.ok) throw new Error(`Instagram media fetch failed: ${mediaRes.status}`);
@@ -44,7 +50,13 @@ export async function fetchInstagramStats(): Promise<InstagramStats> {
     );
     totalViews += views;
     if (!topPost || views > topPost.views) {
-      topPost = { caption: item.caption ?? "", permalink: item.permalink, views };
+      topPost = {
+        caption: item.caption ?? "",
+        permalink: item.permalink,
+        views,
+        likes: Number(item.like_count ?? 0),
+        comments: Number(item.comments_count ?? 0),
+      };
     }
   }
 

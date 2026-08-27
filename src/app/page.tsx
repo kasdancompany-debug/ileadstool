@@ -219,11 +219,31 @@ export default function Dashboard() {
                   <dt className="text-neutral-500">{s.metricLabel}</dt>
                   <dd>{s.views ?? "—"}</dd>
                 </div>
-                <div className="flex justify-between gap-4">
-                  <dt className="text-neutral-500">Top post</dt>
-                  <dd className="truncate text-right">{s.highestPerformingPost ?? "—"}</dd>
-                </div>
               </dl>
+              <div className="mt-3 border-t border-neutral-800 pt-3 text-sm">
+                <p className="text-neutral-500">Top post</p>
+                {s.highestPerformingPost ? (
+                  <>
+                    {s.highestPerformingPost.permalink ? (
+                      <a
+                        href={s.highestPerformingPost.permalink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-1 block truncate text-neutral-300 underline decoration-neutral-600 hover:text-white"
+                      >
+                        {s.highestPerformingPost.text}
+                      </a>
+                    ) : (
+                      <p className="mt-1 truncate text-neutral-300">{s.highestPerformingPost.text}</p>
+                    )}
+                    {s.highestPerformingPost.stats && (
+                      <p className="mt-1 text-xs text-neutral-500">{s.highestPerformingPost.stats}</p>
+                    )}
+                  </>
+                ) : (
+                  <p className="mt-1 text-neutral-300">—</p>
+                )}
+              </div>
               {s.status !== "live" && (
                 <p className="mt-3 text-xs text-neutral-500">
                   Not connected to {s.platform} yet — showing manually entered values.

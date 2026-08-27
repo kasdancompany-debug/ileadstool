@@ -4,8 +4,10 @@
 //   FB_PAGE_ID=<page id, e.g. 170006466376732>
 //
 // "Top post" is ranked by engagement (reactions + comments + shares), not views —
-// view/impression counts need the `read_insights` permission, which isn't set up on
-// this app yet. See src/lib/sources/instagram.ts for the equivalent Instagram client.
+// Meta has deprecated organic post-impression metrics (post_impressions etc.) for
+// most apps, so there's no reliable view count to rank by even with read_insights.
+// Reading /posts at all needs the `pages_read_user_content` permission on top of
+// `pages_read_engagement`. See src/lib/sources/instagram.ts for the IG equivalent.
 const FB_PAGE_ID = process.env.FB_PAGE_ID;
 const FB_ACCESS_TOKEN = process.env.IG_ACCESS_TOKEN;
 
@@ -14,7 +16,14 @@ export const facebookConfigured = Boolean(FB_PAGE_ID && FB_ACCESS_TOKEN);
 export interface FacebookStats {
   followers: number;
   engagementThisMonth: number;
-  topPost: { message: string; permalink: string; engagement: number } | null;
+  topPost: {
+    message: string;
+    permalink: string;
+    engagement: number;
+    likes: number;
+    comments: number;
+    shares: number;
+  } | null;
 }
 
 interface FacebookPost {
@@ -49,13 +58,13 @@ export async function fetchFacebookStats(): Promise<FacebookStats> {
   let topPost: FacebookStats["topPost"] = null;
   let totalEngagement = 0;
   for (const item of (posts.data ?? []) as FacebookPost[]) {
-    const engagement =
-      (item.reactions?.summary.total_count ?? 0) +
-      (item.comments?.summary.total_count ?? 0) +
-      (item.shares?.count ?? 0);
+    const likes = item.reactions?.summary.total_count ?? 0;
+    const comments = item.comments?.summary.total_count ?? 0;
+    const shares = item.shares?.count ?? 0;
+    const engagement = likes + comments + shares;
     totalEngagement += engagement;
     if (!topPost || engagement > topPost.engagement) {
-      topPost = { message: item.message ?? "", permalink: item.permalink_url, engagement };
+      topPost = { message: item.message ?? "", permalink: item.permalink_url, engagement, likes, comments, shares };
     }
   }
 

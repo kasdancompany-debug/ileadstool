@@ -4,7 +4,11 @@ import { ga4Configured, fetchGa4MonthToDate } from "@/lib/sources/ga4";
 import { instagramConfigured, fetchInstagramStats } from "@/lib/sources/instagram";
 import { facebookConfigured, fetchFacebookStats } from "@/lib/sources/facebook";
 import { readOverrides } from "@/lib/overrides";
-import type { DashboardData, LeadSourceRow, SourceStatus } from "@/lib/types";
+import type { DashboardData, LeadSourceRow, SourceStatus, TopPost } from "@/lib/types";
+
+function manualTopPost(text: string | undefined): TopPost | null {
+  return text ? { text, permalink: null, stats: "" } : null;
+}
 
 // Projects a month-to-date count to a full-month pace, matching the sheet's
 // "Tracking for" columns: count / daysComplete * daysAvailable.
@@ -99,7 +103,13 @@ export async function getDashboardData(): Promise<DashboardData> {
         followers: ig.followers,
         views: String(ig.viewsThisMonth),
         metricLabel: "Views",
-        highestPerformingPost: ig.topPost?.caption || ig.topPost?.permalink || null,
+        highestPerformingPost: ig.topPost
+          ? {
+              text: ig.topPost.caption || "(no caption)",
+              permalink: ig.topPost.permalink,
+              stats: `${ig.topPost.views.toLocaleString()} views · ${ig.topPost.likes.toLocaleString()} likes · ${ig.topPost.comments.toLocaleString()} comments`,
+            }
+          : null,
         status: "live",
       });
     } catch {
@@ -109,7 +119,7 @@ export async function getDashboardData(): Promise<DashboardData> {
         followers: manual?.followers ?? null,
         views: manual?.views ?? null,
         metricLabel: "Views",
-        highestPerformingPost: manual?.highestPerformingPost ?? null,
+        highestPerformingPost: manualTopPost(manual?.highestPerformingPost),
         status: "error",
       });
     }
@@ -120,7 +130,7 @@ export async function getDashboardData(): Promise<DashboardData> {
       followers: manual?.followers ?? null,
       views: manual?.views ?? null,
       metricLabel: "Views",
-      highestPerformingPost: manual?.highestPerformingPost ?? null,
+      highestPerformingPost: manualTopPost(manual?.highestPerformingPost),
       status: "manual",
     });
   }
@@ -133,7 +143,13 @@ export async function getDashboardData(): Promise<DashboardData> {
         followers: fb.followers,
         views: String(fb.engagementThisMonth),
         metricLabel: "Engagement",
-        highestPerformingPost: fb.topPost?.message || fb.topPost?.permalink || null,
+        highestPerformingPost: fb.topPost
+          ? {
+              text: fb.topPost.message || "(no caption)",
+              permalink: fb.topPost.permalink,
+              stats: `${fb.topPost.likes.toLocaleString()} likes · ${fb.topPost.comments.toLocaleString()} comments · ${fb.topPost.shares.toLocaleString()} shares`,
+            }
+          : null,
         status: "live",
       });
     } catch {
@@ -143,7 +159,7 @@ export async function getDashboardData(): Promise<DashboardData> {
         followers: manual?.followers ?? null,
         views: manual?.views ?? null,
         metricLabel: "Engagement",
-        highestPerformingPost: manual?.highestPerformingPost ?? null,
+        highestPerformingPost: manualTopPost(manual?.highestPerformingPost),
         status: "error",
       });
     }
@@ -154,7 +170,7 @@ export async function getDashboardData(): Promise<DashboardData> {
       followers: manual?.followers ?? null,
       views: manual?.views ?? null,
       metricLabel: "Engagement",
-      highestPerformingPost: manual?.highestPerformingPost ?? null,
+      highestPerformingPost: manualTopPost(manual?.highestPerformingPost),
       status: "manual",
     });
   }
