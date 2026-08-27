@@ -1,5 +1,5 @@
 {
-  "name": "ileads-tmp",
+  "name": "ileads-dashboard",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -9,13 +9,16 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "google-auth-library": "^11.0.2",
     "next": "16.3.2",
+    "pg": "^8.23.0",
     "react": "19.2.8",
     "react-dom": "19.2.8"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",

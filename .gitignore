@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local-only manual override data (Postgres is used instead once DATABASE_URL is set)
+/data/
