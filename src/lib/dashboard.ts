@@ -10,6 +10,39 @@ function manualTopPost(text: string | undefined): TopPost | null {
   return text ? { text, permalink: null, stats: "" } : null;
 }
 
+function titleCase(s: string): string {
+  return s.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function truncate(s: string, maxLen: number): string {
+  if (s.length <= maxLen) return s;
+  const cut = s.slice(0, maxLen);
+  const lastSpace = cut.lastIndexOf(" ");
+  return (lastSpace > 20 ? cut.slice(0, lastSpace) : cut).trimEnd() + "…";
+}
+
+// Dealership posts are almost always "Congratulations to X on..." or a review
+// shoutout ("Thank you X, it was a pleasure...") — pull just the name out for a
+// short, scannable label instead of showing the whole caption.
+function shortenPostText(raw: string): string {
+  const text = raw.trim();
+  if (!text) return "(no caption)";
+
+  const congrats = text.match(/congratulations to ([a-z][a-z .&']*?)(?:\s+(?:on|for)\b|[!.,\n]|$)/i);
+  if (congrats) return `Congrats ${titleCase(congrats[1])}`;
+
+  const thanks = text.match(/thank you ([a-z][a-z .&']*?)(?:[,!.\n]|$)/i);
+  if (thanks && !/^[A-Z\s.&']+$/.test(thanks[1])) return `Thanks ${titleCase(thanks[1])}`;
+
+  const firstLine =
+    text
+      .split("\n")
+      .map((l) => l.replace(/\p{Extended_Pictographic}/gu, "").trim())
+      .find(Boolean) ?? text;
+  const firstSentence = firstLine.match(/^[^.!?]*[.!?]?/)?.[0]?.trim() || firstLine;
+  return truncate(firstSentence, 42);
+}
+
 // Projects a month-to-date count to a full-month pace, matching the sheet's
 // "Tracking for" columns: count / daysComplete * daysAvailable.
 function projectPace(count: number, daysComplete: number, daysAvailable: number): number | null {
@@ -105,7 +138,7 @@ export async function getDashboardData(): Promise<DashboardData> {
         metricLabel: "Views",
         highestPerformingPost: ig.topPost
           ? {
-              text: ig.topPost.caption || "(no caption)",
+              text: shortenPostText(ig.topPost.caption),
               permalink: ig.topPost.permalink,
               stats: `${ig.topPost.views.toLocaleString()} views · ${ig.topPost.likes.toLocaleString()} likes · ${ig.topPost.comments.toLocaleString()} comments`,
             }
@@ -145,7 +178,7 @@ export async function getDashboardData(): Promise<DashboardData> {
         metricLabel: "Engagement",
         highestPerformingPost: fb.topPost
           ? {
-              text: fb.topPost.message || "(no caption)",
+              text: shortenPostText(fb.topPost.message),
               permalink: fb.topPost.permalink,
               stats: `${fb.topPost.likes.toLocaleString()} likes · ${fb.topPost.comments.toLocaleString()} comments · ${fb.topPost.shares.toLocaleString()} shares`,
             }
