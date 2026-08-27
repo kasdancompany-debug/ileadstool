@@ -16,6 +16,10 @@ export const facebookConfigured = Boolean(FB_PAGE_ID && FB_ACCESS_TOKEN);
 export interface FacebookStats {
   followers: number;
   engagementThisMonth: number;
+  postCountThisMonth: number;
+  likesThisMonth: number;
+  commentsThisMonth: number;
+  sharesThisMonth: number;
   topPost: {
     message: string;
     permalink: string;
@@ -57,12 +61,19 @@ export async function fetchFacebookStats(): Promise<FacebookStats> {
 
   let topPost: FacebookStats["topPost"] = null;
   let totalEngagement = 0;
-  for (const item of (posts.data ?? []) as FacebookPost[]) {
+  let totalLikes = 0;
+  let totalComments = 0;
+  let totalShares = 0;
+  const postsData = (posts.data ?? []) as FacebookPost[];
+  for (const item of postsData) {
     const likes = item.reactions?.summary.total_count ?? 0;
     const comments = item.comments?.summary.total_count ?? 0;
     const shares = item.shares?.count ?? 0;
     const engagement = likes + comments + shares;
     totalEngagement += engagement;
+    totalLikes += likes;
+    totalComments += comments;
+    totalShares += shares;
     if (!topPost || engagement > topPost.engagement) {
       topPost = { message: item.message ?? "", permalink: item.permalink_url, engagement, likes, comments, shares };
     }
@@ -71,6 +82,10 @@ export async function fetchFacebookStats(): Promise<FacebookStats> {
   return {
     followers: Number(profile.fan_count ?? 0),
     engagementThisMonth: totalEngagement,
+    postCountThisMonth: postsData.length,
+    likesThisMonth: totalLikes,
+    commentsThisMonth: totalComments,
+    sharesThisMonth: totalShares,
     topPost,
   };
 }

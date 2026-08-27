@@ -141,7 +141,7 @@ export async function getDashboardData(): Promise<DashboardData> {
       socialMedia.push({
         platform: "Facebook",
         followers: fb.followers,
-        views: String(fb.engagementThisMonth),
+        views: `${fb.engagementThisMonth.toLocaleString()} (${fb.likesThisMonth.toLocaleString()} likes · ${fb.commentsThisMonth.toLocaleString()} comments · ${fb.sharesThisMonth.toLocaleString()} shares, across ${fb.postCountThisMonth} ${fb.postCountThisMonth === 1 ? "post" : "posts"})`,
         metricLabel: "Engagement",
         highestPerformingPost: fb.topPost
           ? {

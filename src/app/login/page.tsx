@@ -30,26 +30,28 @@ function LoginForm() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-neutral-950 px-4">
+    <div className="flex min-h-screen items-center justify-center px-4">
       <form
         onSubmit={handleSubmit}
-        className="w-full max-w-sm rounded-xl border border-neutral-800 bg-neutral-900 p-8 shadow-xl"
+        className="w-full max-w-sm rounded-2xl border border-hairline bg-surface p-8 shadow-2xl shadow-black/50"
       >
-        <h1 className="mb-1 text-xl font-semibold text-neutral-100">iLeads Dashboard</h1>
-        <p className="mb-6 text-sm text-neutral-400">Sault Nissan internal lead tracker</p>
+        <div className="mb-6 h-1 w-10 rounded-full bg-accent" />
+        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-accent">Sault Nissan</p>
+        <h1 className="mt-1 mb-1 text-2xl font-black tracking-tight text-neutral-50">iLeads Dashboard</h1>
+        <p className="mb-6 text-sm text-neutral-500">Internal lead tracker — sign in to continue</p>
         <input
           type="password"
           autoFocus
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder="Password"
-          className="mb-4 w-full rounded-md border border-neutral-700 bg-neutral-800 px-3 py-2 text-neutral-100 outline-none focus:border-neutral-500"
+          className="mb-4 w-full rounded-lg border border-hairline bg-neutral-900 px-3 py-2.5 text-neutral-100 outline-none transition-colors focus:border-accent"
         />
         {error && <p className="mb-4 text-sm text-red-400">{error}</p>}
         <button
           type="submit"
           disabled={loading}
-          className="w-full rounded-md bg-neutral-100 px-3 py-2 font-medium text-neutral-900 hover:bg-white disabled:opacity-50"
+          className="w-full rounded-lg bg-accent px-3 py-2.5 font-semibold text-neutral-950 transition-colors hover:bg-orange-400 disabled:opacity-50"
         >
           {loading ? "Signing in…" : "Sign in"}
         </button>
