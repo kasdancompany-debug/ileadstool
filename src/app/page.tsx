@@ -21,6 +21,18 @@ function num(n: number | null) {
   return n === null ? "—" : n.toLocaleString();
 }
 
+// Distinguishes "nothing posted yet this month" from "not actually connected" —
+// the latest post regardless of month, so a fresh-month zero reads as quiet
+// rather than broken.
+function formatLastPost(iso: string): string {
+  const then = new Date(iso);
+  const days = Math.floor((Date.now() - then.getTime()) / 86_400_000);
+  if (days <= 0) return "today";
+  if (days === 1) return "yesterday";
+  if (days < 30) return `${days} days ago`;
+  return then.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
 function Eyebrow({ children }: { children: React.ReactNode }) {
   return (
     <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-accent">{children}</p>
@@ -475,7 +487,19 @@ export default function Dashboard() {
                           onChange={(e) => setLeadOverride(row.key, field, e.target.value)}
                         />
                       ) : (
-                        row[field].toLocaleString()
+                        <span className="inline-flex items-center justify-end gap-1.5">
+                          {field === "sold" && row.soldFlag && (
+                            <span
+                              title="Sold is far higher than appointments booked this month — worth a manual check in BKD before reporting this number. Often a sign of bulk-imported or backfilled records."
+                              className="cursor-help text-amber-400"
+                            >
+                              <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
+                                <path d="M12 2 1 21h22L12 2Zm0 6.5 6.6 11.5H5.4L12 8.5ZM11 11h2v5h-2v-5Zm0 6.5h2v2h-2v-2Z" />
+                              </svg>
+                            </span>
+                          )}
+                          {row[field].toLocaleString()}
+                        </span>
                       )}
                     </td>
                   ))}
@@ -555,6 +579,9 @@ export default function Dashboard() {
                     </div>
                   ))}
                 </dl>
+                {s.lastPostAt && (
+                  <p className="mt-2 text-xs text-neutral-600">Last posted {formatLastPost(s.lastPostAt)}</p>
+                )}
                 <div className="mt-3 border-l-2 border-accent/50 pl-3">
                   <p className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500">Top post</p>
                   {s.highestPerformingPost ? (

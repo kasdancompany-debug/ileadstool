@@ -10,6 +10,11 @@ export interface LeadSourceRow {
   trackingForSold: number | null;
   ninetyDayAvg: number | null;
   status: SourceStatus;
+  // True when `sold` is wildly out of line with `appointments` for this source —
+  // a signal worth a manual check in BKD before trusting the number, not proof
+  // it's wrong (sold counts close-date, appointments counts booked-date, so some
+  // gap is normal — this only fires on gaps too large to be that).
+  soldFlag: boolean;
 }
 
 export interface WebsiteTraffic {
@@ -36,6 +41,7 @@ export interface SocialMediaRow {
   metricLabel: string;
   metricValue: string | null;
   breakdown: StatChip[];
+  lastPostAt: string | null;
   highestPerformingPost: TopPost | null;
   status: SourceStatus;
 }

@@ -20,6 +20,7 @@ export interface FacebookStats {
   likesThisMonth: number;
   commentsThisMonth: number;
   sharesThisMonth: number;
+  lastPostAt: string | null;
   topPost: {
     message: string;
     permalink: string;
@@ -46,19 +47,26 @@ export async function fetchFacebookStats(monthStart: Date, asOf: Date): Promise<
     new Date(asOf.getFullYear(), asOf.getMonth(), asOf.getDate(), 23, 59, 59).getTime() / 1000
   );
 
-  const profileRes = await fetch(
-    `https://graph.facebook.com/v21.0/${FB_PAGE_ID}?fields=fan_count&access_token=${FB_ACCESS_TOKEN}`,
-    { cache: "no-store" }
-  );
+  const [profileRes, postsRes, latestRes] = await Promise.all([
+    fetch(`https://graph.facebook.com/v21.0/${FB_PAGE_ID}?fields=fan_count&access_token=${FB_ACCESS_TOKEN}`, {
+      cache: "no-store",
+    }),
+    fetch(
+      `https://graph.facebook.com/v21.0/${FB_PAGE_ID}/posts?fields=message,permalink_url,shares,reactions.summary(true),comments.summary(true)&since=${sinceUnix}&until=${untilUnix}&limit=100&access_token=${FB_ACCESS_TOKEN}`,
+      { cache: "no-store" }
+    ),
+    // Unscoped by date — tells us when the page last posted at all, so a
+    // month with zero posts so far reads as "quiet" rather than "broken."
+    fetch(`https://graph.facebook.com/v21.0/${FB_PAGE_ID}/posts?fields=created_time&limit=1&access_token=${FB_ACCESS_TOKEN}`, {
+      cache: "no-store",
+    }),
+  ]);
   if (!profileRes.ok) throw new Error(`Facebook page fetch failed: ${profileRes.status}`);
-  const profile = await profileRes.json();
-
-  const postsRes = await fetch(
-    `https://graph.facebook.com/v21.0/${FB_PAGE_ID}/posts?fields=message,permalink_url,shares,reactions.summary(true),comments.summary(true)&since=${sinceUnix}&until=${untilUnix}&limit=100&access_token=${FB_ACCESS_TOKEN}`,
-    { cache: "no-store" }
-  );
   if (!postsRes.ok) throw new Error(`Facebook posts fetch failed: ${postsRes.status}`);
+  const profile = await profileRes.json();
   const posts = await postsRes.json();
+  const latest = latestRes.ok ? await latestRes.json() : null;
+  const lastPostAt: string | null = latest?.data?.[0]?.created_time ?? null;
 
   let topPost: FacebookStats["topPost"] = null;
   let totalEngagement = 0;
@@ -87,6 +95,7 @@ export async function fetchFacebookStats(monthStart: Date, asOf: Date): Promise<
     likesThisMonth: totalLikes,
     commentsThisMonth: totalComments,
     sharesThisMonth: totalShares,
+    lastPostAt,
     topPost,
   };
 }

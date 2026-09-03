@@ -13,6 +13,7 @@ export interface InstagramStats {
   followers: number;
   viewsThisMonth: number;
   postCountThisMonth: number;
+  lastPostAt: string | null;
   topPost: {
     caption: string;
     permalink: string;
@@ -30,19 +31,28 @@ export async function fetchInstagramStats(monthStart: Date, asOf: Date): Promise
     new Date(asOf.getFullYear(), asOf.getMonth(), asOf.getDate(), 23, 59, 59).getTime() / 1000
   );
 
-  const profileRes = await fetch(
-    `https://graph.facebook.com/v21.0/${IG_ACCOUNT_ID}?fields=followers_count&access_token=${IG_ACCESS_TOKEN}`,
-    { cache: "no-store" }
-  );
+  const [profileRes, mediaRes, latestRes] = await Promise.all([
+    fetch(
+      `https://graph.facebook.com/v21.0/${IG_ACCOUNT_ID}?fields=followers_count&access_token=${IG_ACCESS_TOKEN}`,
+      { cache: "no-store" }
+    ),
+    fetch(
+      `https://graph.facebook.com/v21.0/${IG_ACCOUNT_ID}/media?fields=caption,permalink,timestamp,like_count,comments_count,insights.metric(views)&since=${sinceUnix}&until=${untilUnix}&limit=100&access_token=${IG_ACCESS_TOKEN}`,
+      { cache: "no-store" }
+    ),
+    // Unscoped by date — tells us when the account last posted at all, so a
+    // month with zero posts so far reads as "quiet" rather than "broken."
+    fetch(
+      `https://graph.facebook.com/v21.0/${IG_ACCOUNT_ID}/media?fields=timestamp&limit=1&access_token=${IG_ACCESS_TOKEN}`,
+      { cache: "no-store" }
+    ),
+  ]);
   if (!profileRes.ok) throw new Error(`Instagram profile fetch failed: ${profileRes.status}`);
-  const profile = await profileRes.json();
-
-  const mediaRes = await fetch(
-    `https://graph.facebook.com/v21.0/${IG_ACCOUNT_ID}/media?fields=caption,permalink,timestamp,like_count,comments_count,insights.metric(views)&since=${sinceUnix}&until=${untilUnix}&limit=100&access_token=${IG_ACCESS_TOKEN}`,
-    { cache: "no-store" }
-  );
   if (!mediaRes.ok) throw new Error(`Instagram media fetch failed: ${mediaRes.status}`);
+  const profile = await profileRes.json();
   const media = await mediaRes.json();
+  const latest = latestRes.ok ? await latestRes.json() : null;
+  const lastPostAt: string | null = latest?.data?.[0]?.timestamp ?? null;
 
   let topPost: InstagramStats["topPost"] = null;
   let totalViews = 0;
@@ -67,6 +77,7 @@ export async function fetchInstagramStats(monthStart: Date, asOf: Date): Promise
     followers: Number(profile.followers_count ?? 0),
     viewsThisMonth: totalViews,
     postCountThisMonth: mediaData.length,
+    lastPostAt,
     topPost,
   };
 }
