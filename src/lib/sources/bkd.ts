@@ -128,13 +128,15 @@ function toDateStr(d: Date): string {
 
 export interface BkdLeadCounts {
   // channel label ("via X") -> counts
-  [channel: string]: { leads: number; appointments: number; sold: number };
+  [channel: string]: { leads: number; appointments: number; sold: number; ninetyDayLeads: number };
 }
 
 /**
  * Pulls lead/appointment/sold counts per active channel via the `bkd_analytics`
- * tool, broken down by lead source, for [monthStart, asOf] inclusive. Throws on
- * any failure — callers should catch and fall back to manual overrides.
+ * tool, broken down by lead source, for [monthStart, asOf] inclusive, plus each
+ * channel's raw lead total over the trailing 90 days ending on asOf (callers turn
+ * that into a per-month average). Throws on any failure — callers should catch
+ * and fall back to manual overrides.
  */
 export async function fetchMonthToDateCounts(monthStart: Date, asOf: Date): Promise<BkdLeadCounts> {
   await initialize();
@@ -146,10 +148,14 @@ export async function fetchMonthToDateCounts(monthStart: Date, asOf: Date): Prom
   const from_date = toDateStr(monthStart);
   const to_date = toDateStr(asOf);
 
-  const [leads, sold, appointments] = await Promise.all([
+  const ninetyDaysAgo = new Date(asOf.getFullYear(), asOf.getMonth(), asOf.getDate() - 89);
+  const ninetyDayFrom = toDateStr(ninetyDaysAgo);
+
+  const [leads, sold, appointments, ninetyDayLeads] = await Promise.all([
     callTool<AnalyticsResult>(analyticsTool.name, { metric: "leads", group_by: "source", from_date, to_date }),
     callTool<AnalyticsResult>(analyticsTool.name, { metric: "sold_units", group_by: "source", from_date, to_date }),
     callTool<AnalyticsResult>(analyticsTool.name, { metric: "appointments", group_by: "source", from_date, to_date }),
+    callTool<AnalyticsResult>(analyticsTool.name, { metric: "leads", group_by: "source", from_date: ninetyDayFrom, to_date }),
   ]);
 
   const byBucket = (r: AnalyticsResult) => {
@@ -160,6 +166,7 @@ export async function fetchMonthToDateCounts(monthStart: Date, asOf: Date): Prom
   const leadsByBucket = byBucket(leads);
   const soldByBucket = byBucket(sold);
   const apptsByBucket = byBucket(appointments);
+  const ninetyDayByBucket = byBucket(ninetyDayLeads);
 
   const counts: BkdLeadCounts = {};
   for (const src of LEAD_SOURCES) {
@@ -169,6 +176,7 @@ export async function fetchMonthToDateCounts(monthStart: Date, asOf: Date): Prom
       leads: leadsByBucket.get(key) ?? 0,
       appointments: apptsByBucket.get(key) ?? 0,
       sold: soldByBucket.get(key) ?? 0,
+      ninetyDayLeads: ninetyDayByBucket.get(key) ?? 0,
     };
   }
 

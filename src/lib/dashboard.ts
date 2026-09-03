@@ -102,6 +102,10 @@ export async function getDashboardData(dateParam?: string): Promise<DashboardDat
     const sold = live?.sold ?? manual?.sold ?? 0;
     const status: SourceStatus = live ? "live" : manual ? "manual" : bkdError ? "error" : "manual";
 
+    // Trailing 90-day lead rate, scaled to a full month of this length — same
+    // units as "Pace (leads)" so the two are directly comparable.
+    const ninetyDayAvg = live ? Math.round((live.ninetyDayLeads / 90) * daysAvailable) : null;
+
     return {
       key: src.key,
       label: src.label,
@@ -110,7 +114,7 @@ export async function getDashboardData(dateParam?: string): Promise<DashboardDat
       sold,
       trackingForLeads: projectPace(leadCount, daysComplete, daysAvailable),
       trackingForSold: projectPace(sold, daysComplete, daysAvailable),
-      ninetyDayAvg: null, // needs 3 months of history; not yet available from BKD.ai
+      ninetyDayAvg,
       status,
     };
   });
@@ -124,6 +128,9 @@ export async function getDashboardData(dateParam?: string): Promise<DashboardDat
     },
     { leadCount: 0, appointments: 0, sold: 0 }
   );
+
+  const ninetyDayLeadTotal = Object.values(bkdCounts ?? {}).reduce((sum, c) => sum + c.ninetyDayLeads, 0);
+  const totalsNinetyDayAvg = bkdCounts ? Math.round((ninetyDayLeadTotal / 90) * daysAvailable) : null;
 
   let websiteTraffic: DashboardData["websiteTraffic"];
   if (ga4Configured) {
@@ -250,7 +257,7 @@ export async function getDashboardData(dateParam?: string): Promise<DashboardDat
       trackingForLeads: projectPace(totals.leadCount, daysComplete, daysAvailable),
       trackingForAppointments: projectPace(totals.appointments, daysComplete, daysAvailable),
       trackingForSold: projectPace(totals.sold, daysComplete, daysAvailable),
-      ninetyDayAvg: null,
+      ninetyDayAvg: totalsNinetyDayAvg,
     },
     websiteTraffic,
     socialMedia,
