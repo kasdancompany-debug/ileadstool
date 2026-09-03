@@ -3,8 +3,8 @@ import { bkdConfigured, fetchMonthToDateCounts } from "@/lib/sources/bkd";
 import { ga4Configured, fetchGa4MonthToDate } from "@/lib/sources/ga4";
 import { instagramConfigured, fetchInstagramStats } from "@/lib/sources/instagram";
 import { facebookConfigured, fetchFacebookStats } from "@/lib/sources/facebook";
-import { readOverrides } from "@/lib/overrides";
-import type { DashboardData, LeadSourceRow, SourceStatus, TopPost } from "@/lib/types";
+import { readOverrides, type Overrides } from "@/lib/overrides";
+import type { DashboardData, LeadSourceRow, SocialMediaRow, SourceStatus, TopPost } from "@/lib/types";
 
 function manualTopPost(text: string | undefined): TopPost | null {
   return text ? { text, permalink: null, stats: "" } : null;
@@ -74,6 +74,143 @@ function resolveAsOfDate(dateParam?: string): Date {
   return parsed > today ? today : parsed;
 }
 
+async function fetchBkd(
+  monthStart: Date,
+  asOf: Date
+): Promise<{ counts: Awaited<ReturnType<typeof fetchMonthToDateCounts>> | null; error: string | null }> {
+  if (!bkdConfigured) return { counts: null, error: null };
+  try {
+    return { counts: await fetchMonthToDateCounts(monthStart, asOf), error: null };
+  } catch (e) {
+    return { counts: null, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+async function fetchWebsiteTraffic(
+  monthStart: Date,
+  asOf: Date,
+  overrides: Overrides
+): Promise<DashboardData["websiteTraffic"]> {
+  if (!ga4Configured) {
+    return {
+      sessions: overrides.websiteTraffic.sessions ?? null,
+      uniqueVisitors: overrides.websiteTraffic.uniqueVisitors ?? null,
+      avgSessionDurationSec: overrides.websiteTraffic.avgSessionDurationSec ?? null,
+      status: "manual",
+    };
+  }
+  try {
+    const ga4 = await fetchGa4MonthToDate(monthStart, asOf);
+    return { ...ga4, status: "live" };
+  } catch {
+    return {
+      sessions: overrides.websiteTraffic.sessions ?? null,
+      uniqueVisitors: overrides.websiteTraffic.uniqueVisitors ?? null,
+      avgSessionDurationSec: overrides.websiteTraffic.avgSessionDurationSec ?? null,
+      status: "error",
+    };
+  }
+}
+
+async function fetchInstagramRow(monthStart: Date, asOf: Date, overrides: Overrides): Promise<SocialMediaRow> {
+  if (!instagramConfigured) {
+    const manual = overrides.socialMedia["instagram"];
+    return {
+      platform: "Instagram",
+      followers: manual?.followers ?? null,
+      metricLabel: "Views",
+      metricValue: manual?.views ?? null,
+      breakdown: [],
+      lastPostAt: null,
+      highestPerformingPost: manualTopPost(manual?.highestPerformingPost),
+      status: "manual",
+    };
+  }
+  try {
+    const ig = await fetchInstagramStats(monthStart, asOf);
+    return {
+      platform: "Instagram",
+      followers: ig.followers,
+      metricLabel: "Views",
+      metricValue: ig.viewsThisMonth.toLocaleString(),
+      breakdown: [{ label: "Posts", value: ig.postCountThisMonth.toLocaleString() }],
+      lastPostAt: ig.lastPostAt,
+      highestPerformingPost: ig.topPost
+        ? {
+            text: shortenPostText(ig.topPost.caption),
+            permalink: ig.topPost.permalink,
+            stats: `${ig.topPost.views.toLocaleString()} views · ${ig.topPost.likes.toLocaleString()} likes · ${ig.topPost.comments.toLocaleString()} comments`,
+          }
+        : null,
+      status: "live",
+    };
+  } catch {
+    const manual = overrides.socialMedia["instagram"];
+    return {
+      platform: "Instagram",
+      followers: manual?.followers ?? null,
+      metricLabel: "Views",
+      metricValue: manual?.views ?? null,
+      breakdown: [],
+      lastPostAt: null,
+      highestPerformingPost: manualTopPost(manual?.highestPerformingPost),
+      status: "error",
+    };
+  }
+}
+
+async function fetchFacebookRow(monthStart: Date, asOf: Date, overrides: Overrides): Promise<SocialMediaRow> {
+  if (!facebookConfigured) {
+    const manual = overrides.socialMedia["facebook"];
+    return {
+      platform: "Facebook",
+      followers: manual?.followers ?? null,
+      metricLabel: "Engagement",
+      metricValue: manual?.views ?? null,
+      breakdown: [],
+      lastPostAt: null,
+      highestPerformingPost: manualTopPost(manual?.highestPerformingPost),
+      status: "manual",
+    };
+  }
+  try {
+    const fb = await fetchFacebookStats(monthStart, asOf);
+    return {
+      platform: "Facebook",
+      followers: fb.followers,
+      metricLabel: "Engagement",
+      metricValue: fb.engagementThisMonth.toLocaleString(),
+      breakdown: [
+        { label: "Likes", value: fb.likesThisMonth.toLocaleString() },
+        { label: "Comments", value: fb.commentsThisMonth.toLocaleString() },
+        { label: "Shares", value: fb.sharesThisMonth.toLocaleString() },
+        { label: "Posts", value: fb.postCountThisMonth.toLocaleString() },
+      ],
+      lastPostAt: fb.lastPostAt,
+      highestPerformingPost: fb.topPost
+        ? {
+            text: shortenPostText(fb.topPost.message),
+            permalink: fb.topPost.permalink,
+            stats: `${fb.topPost.likes.toLocaleString()} likes · ${fb.topPost.comments.toLocaleString()} comments · ${fb.topPost.shares.toLocaleString()} shares`,
+          }
+        : null,
+      status: "live",
+    };
+  } catch {
+    const manual = overrides.socialMedia["facebook"];
+    return {
+      platform: "Facebook",
+      followers: manual?.followers ?? null,
+      metricLabel: "Engagement",
+      metricValue: manual?.views ?? null,
+      breakdown: [],
+      lastPostAt: null,
+      highestPerformingPost: manualTopPost(manual?.highestPerformingPost),
+      status: "error",
+    };
+  }
+}
+
 export async function getDashboardData(dateParam?: string): Promise<DashboardData> {
   const asOf = resolveAsOfDate(dateParam);
   const daysAvailable = daysInMonth(asOf.getFullYear(), asOf.getMonth());
@@ -83,15 +220,16 @@ export async function getDashboardData(dateParam?: string): Promise<DashboardDat
 
   const overrides = await readOverrides();
 
-  let bkdCounts: Awaited<ReturnType<typeof fetchMonthToDateCounts>> | null = null;
-  let bkdError: string | null = null;
-  if (bkdConfigured) {
-    try {
-      bkdCounts = await fetchMonthToDateCounts(monthStart, asOf);
-    } catch (e) {
-      bkdError = e instanceof Error ? e.message : String(e);
-    }
-  }
+  // These four sources are independent of each other — fetch concurrently
+  // instead of one after another, since a serial chain was the main cause of
+  // slow page loads (each source is its own network round trip).
+  const [bkdResult, websiteTraffic, instagramRow, facebookRow] = await Promise.all([
+    fetchBkd(monthStart, asOf),
+    fetchWebsiteTraffic(monthStart, asOf, overrides),
+    fetchInstagramRow(monthStart, asOf, overrides),
+    fetchFacebookRow(monthStart, asOf, overrides),
+  ]);
+  const { counts: bkdCounts, error: bkdError } = bkdResult;
 
   const leadSources: LeadSourceRow[] = LEAD_SOURCES.map((src) => {
     const live = src.bkdChannel ? bkdCounts?.[src.bkdChannel] : undefined;
@@ -132,125 +270,7 @@ export async function getDashboardData(dateParam?: string): Promise<DashboardDat
   const ninetyDayLeadTotal = Object.values(bkdCounts ?? {}).reduce((sum, c) => sum + c.ninetyDayLeads, 0);
   const totalsNinetyDayAvg = bkdCounts ? Math.round((ninetyDayLeadTotal / 90) * daysAvailable) : null;
 
-  let websiteTraffic: DashboardData["websiteTraffic"];
-  if (ga4Configured) {
-    try {
-      const ga4 = await fetchGa4MonthToDate(monthStart, asOf);
-      websiteTraffic = { ...ga4, status: "live" };
-    } catch {
-      websiteTraffic = {
-        sessions: overrides.websiteTraffic.sessions ?? null,
-        uniqueVisitors: overrides.websiteTraffic.uniqueVisitors ?? null,
-        avgSessionDurationSec: overrides.websiteTraffic.avgSessionDurationSec ?? null,
-        status: "error",
-      };
-    }
-  } else {
-    websiteTraffic = {
-      sessions: overrides.websiteTraffic.sessions ?? null,
-      uniqueVisitors: overrides.websiteTraffic.uniqueVisitors ?? null,
-      avgSessionDurationSec: overrides.websiteTraffic.avgSessionDurationSec ?? null,
-      status: "manual",
-    };
-  }
-
-  const socialMedia: DashboardData["socialMedia"] = [];
-  if (instagramConfigured) {
-    try {
-      const ig = await fetchInstagramStats(monthStart, asOf);
-      socialMedia.push({
-        platform: "Instagram",
-        followers: ig.followers,
-        metricLabel: "Views",
-        metricValue: ig.viewsThisMonth.toLocaleString(),
-        breakdown: [{ label: "Posts", value: ig.postCountThisMonth.toLocaleString() }],
-        lastPostAt: ig.lastPostAt,
-        highestPerformingPost: ig.topPost
-          ? {
-              text: shortenPostText(ig.topPost.caption),
-              permalink: ig.topPost.permalink,
-              stats: `${ig.topPost.views.toLocaleString()} views · ${ig.topPost.likes.toLocaleString()} likes · ${ig.topPost.comments.toLocaleString()} comments`,
-            }
-          : null,
-        status: "live",
-      });
-    } catch {
-      const manual = overrides.socialMedia["instagram"];
-      socialMedia.push({
-        platform: "Instagram",
-        followers: manual?.followers ?? null,
-        metricLabel: "Views",
-        metricValue: manual?.views ?? null,
-        breakdown: [],
-        lastPostAt: null,
-        highestPerformingPost: manualTopPost(manual?.highestPerformingPost),
-        status: "error",
-      });
-    }
-  } else {
-    const manual = overrides.socialMedia["instagram"];
-    socialMedia.push({
-      platform: "Instagram",
-      followers: manual?.followers ?? null,
-      metricLabel: "Views",
-      metricValue: manual?.views ?? null,
-      breakdown: [],
-      lastPostAt: null,
-      highestPerformingPost: manualTopPost(manual?.highestPerformingPost),
-      status: "manual",
-    });
-  }
-
-  if (facebookConfigured) {
-    try {
-      const fb = await fetchFacebookStats(monthStart, asOf);
-      socialMedia.push({
-        platform: "Facebook",
-        followers: fb.followers,
-        metricLabel: "Engagement",
-        metricValue: fb.engagementThisMonth.toLocaleString(),
-        breakdown: [
-          { label: "Likes", value: fb.likesThisMonth.toLocaleString() },
-          { label: "Comments", value: fb.commentsThisMonth.toLocaleString() },
-          { label: "Shares", value: fb.sharesThisMonth.toLocaleString() },
-          { label: "Posts", value: fb.postCountThisMonth.toLocaleString() },
-        ],
-        lastPostAt: fb.lastPostAt,
-        highestPerformingPost: fb.topPost
-          ? {
-              text: shortenPostText(fb.topPost.message),
-              permalink: fb.topPost.permalink,
-              stats: `${fb.topPost.likes.toLocaleString()} likes · ${fb.topPost.comments.toLocaleString()} comments · ${fb.topPost.shares.toLocaleString()} shares`,
-            }
-          : null,
-        status: "live",
-      });
-    } catch {
-      const manual = overrides.socialMedia["facebook"];
-      socialMedia.push({
-        platform: "Facebook",
-        followers: manual?.followers ?? null,
-        metricLabel: "Engagement",
-        metricValue: manual?.views ?? null,
-        breakdown: [],
-        lastPostAt: null,
-        highestPerformingPost: manualTopPost(manual?.highestPerformingPost),
-        status: "error",
-      });
-    }
-  } else {
-    const manual = overrides.socialMedia["facebook"];
-    socialMedia.push({
-      platform: "Facebook",
-      followers: manual?.followers ?? null,
-      metricLabel: "Engagement",
-      metricValue: manual?.views ?? null,
-      breakdown: [],
-      lastPostAt: null,
-      highestPerformingPost: manualTopPost(manual?.highestPerformingPost),
-      status: "manual",
-    });
-  }
+  const socialMedia: DashboardData["socialMedia"] = [instagramRow, facebookRow];
 
   return {
     month: monthLabel,

@@ -126,6 +126,34 @@ function toDateStr(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+// The MCP endpoint is stateless per-request (bearer token alone authenticates
+// each call) — confirmed empirically that tools/call works standalone, with no
+// prior initialize/tools-list needed. That handshake was costing ~1.5s of every
+// dashboard load for information (the tool's existence) that doesn't change
+// between requests. Skip straight to the known tool name; only pay for the
+// full discovery handshake if that name ever stops working (e.g. BKD renames
+// it), and remember the result so later calls this server stays fast too.
+let knownAnalyticsToolName = "bkd_analytics";
+
+async function discoverAnalyticsToolName(): Promise<string> {
+  await initialize();
+  const { tools } = await listTools();
+  const analyticsTool = tools.find((t) => t.name === "bkd_analytics") ?? tools.find((t) => /analytics/i.test(t.name));
+  if (!analyticsTool) throw new Error("No analytics tool exposed by BKD MCP server");
+  knownAnalyticsToolName = analyticsTool.name;
+  return knownAnalyticsToolName;
+}
+
+async function callAnalyticsTool<T>(args: Record<string, unknown>): Promise<T> {
+  try {
+    return await callTool<T>(knownAnalyticsToolName, args);
+  } catch {
+    // Name may have changed server-side — rediscover once and retry before giving up.
+    const rediscovered = await discoverAnalyticsToolName();
+    return await callTool<T>(rediscovered, args);
+  }
+}
+
 export interface BkdLeadCounts {
   // channel label ("via X") -> counts
   [channel: string]: { leads: number; appointments: number; sold: number; ninetyDayLeads: number };
@@ -139,12 +167,6 @@ export interface BkdLeadCounts {
  * and fall back to manual overrides.
  */
 export async function fetchMonthToDateCounts(monthStart: Date, asOf: Date): Promise<BkdLeadCounts> {
-  await initialize();
-  const { tools } = await listTools();
-
-  const analyticsTool = tools.find((t) => t.name === "bkd_analytics") ?? tools.find((t) => /analytics/i.test(t.name));
-  if (!analyticsTool) throw new Error("No analytics tool exposed by BKD MCP server");
-
   const from_date = toDateStr(monthStart);
   const to_date = toDateStr(asOf);
 
@@ -152,10 +174,10 @@ export async function fetchMonthToDateCounts(monthStart: Date, asOf: Date): Prom
   const ninetyDayFrom = toDateStr(ninetyDaysAgo);
 
   const [leads, sold, appointments, ninetyDayLeads] = await Promise.all([
-    callTool<AnalyticsResult>(analyticsTool.name, { metric: "leads", group_by: "source", from_date, to_date }),
-    callTool<AnalyticsResult>(analyticsTool.name, { metric: "sold_units", group_by: "source", from_date, to_date }),
-    callTool<AnalyticsResult>(analyticsTool.name, { metric: "appointments", group_by: "source", from_date, to_date }),
-    callTool<AnalyticsResult>(analyticsTool.name, { metric: "leads", group_by: "source", from_date: ninetyDayFrom, to_date }),
+    callAnalyticsTool<AnalyticsResult>({ metric: "leads", group_by: "source", from_date, to_date }),
+    callAnalyticsTool<AnalyticsResult>({ metric: "sold_units", group_by: "source", from_date, to_date }),
+    callAnalyticsTool<AnalyticsResult>({ metric: "appointments", group_by: "source", from_date, to_date }),
+    callAnalyticsTool<AnalyticsResult>({ metric: "leads", group_by: "source", from_date: ninetyDayFrom, to_date }),
   ]);
 
   const byBucket = (r: AnalyticsResult) => {
