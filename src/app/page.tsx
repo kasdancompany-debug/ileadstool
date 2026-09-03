@@ -494,19 +494,7 @@ export default function Dashboard() {
                           onChange={(e) => setLeadOverride(row.key, field, e.target.value)}
                         />
                       ) : (
-                        <span className="inline-flex items-center justify-end gap-1.5">
-                          {field === "sold" && row.soldFlag && (
-                            <span
-                              title="Sold is far higher than appointments booked this month — worth a manual check in BKD before reporting this number. Often a sign of bulk-imported or backfilled records."
-                              className="cursor-help text-amber-400"
-                            >
-                              <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
-                                <path d="M12 2 1 21h22L12 2Zm0 6.5 6.6 11.5H5.4L12 8.5ZM11 11h2v5h-2v-5Zm0 6.5h2v2h-2v-2Z" />
-                              </svg>
-                            </span>
-                          )}
-                          {row[field].toLocaleString()}
-                        </span>
+                        row[field].toLocaleString()
                       )}
                     </td>
                   ))}

@@ -106,14 +106,6 @@ export async function getDashboardData(dateParam?: string): Promise<DashboardDat
     // units as "Pace (leads)" so the two are directly comparable.
     const ninetyDayAvg = live ? Math.round((live.ninetyDayLeads / 90) * daysAvailable) : null;
 
-    // Sold counts by close date, appointments by booked date, so a deal can
-    // close in a month its appointment wasn't booked in — some gap is normal.
-    // A gap this large (10+ sold, more than double appointments) is the
-    // signature we saw on a batch of bulk-imported/backfilled BKD records
-    // (contacts stuck at status "New", never contacted, identical create
-    // timestamps) — flag it for a manual check rather than trust it blindly.
-    const soldFlag = live !== undefined && sold >= 10 && sold > appointments * 2;
-
     return {
       key: src.key,
       label: src.label,
@@ -124,7 +116,6 @@ export async function getDashboardData(dateParam?: string): Promise<DashboardDat
       trackingForSold: projectPace(sold, daysComplete, daysAvailable),
       ninetyDayAvg,
       status,
-      soldFlag,
     };
   });
 
