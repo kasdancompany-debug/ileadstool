@@ -54,12 +54,32 @@ function daysInMonth(year: number, month: number) {
   return new Date(year, month + 1, 0).getDate();
 }
 
-export async function getDashboardData(): Promise<DashboardData> {
-  const now = new Date();
-  const daysAvailable = daysInMonth(now.getFullYear(), now.getMonth());
-  const daysComplete = now.getDate();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const monthLabel = now.toLocaleString("en-US", { month: "long", year: "numeric" });
+function toDateStr(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+// Resolves the "as of" date the dashboard should treat as the current day —
+// defaults to today, or an explicit YYYY-MM-DD to look at any single month as
+// it stood on that day (e.g. "2026-08-10" = day 10 of August, ignoring
+// anything after Aug 10 even though the real month has since finished).
+// Future dates clamp to today since no source has data past the present.
+function resolveAsOfDate(dateParam?: string): Date {
+  const today = new Date();
+  if (!dateParam) return today;
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateParam);
+  if (!match) return today;
+  const [, y, m, d] = match;
+  const parsed = new Date(Number(y), Number(m) - 1, Number(d));
+  if (Number.isNaN(parsed.getTime())) return today;
+  return parsed > today ? today : parsed;
+}
+
+export async function getDashboardData(dateParam?: string): Promise<DashboardData> {
+  const asOf = resolveAsOfDate(dateParam);
+  const daysAvailable = daysInMonth(asOf.getFullYear(), asOf.getMonth());
+  const daysComplete = asOf.getDate();
+  const monthStart = new Date(asOf.getFullYear(), asOf.getMonth(), 1);
+  const monthLabel = asOf.toLocaleString("en-US", { month: "long", year: "numeric" });
 
   const overrides = await readOverrides();
 
@@ -67,7 +87,7 @@ export async function getDashboardData(): Promise<DashboardData> {
   let bkdError: string | null = null;
   if (bkdConfigured) {
     try {
-      bkdCounts = await fetchMonthToDateCounts(monthStart);
+      bkdCounts = await fetchMonthToDateCounts(monthStart, asOf);
     } catch (e) {
       bkdError = e instanceof Error ? e.message : String(e);
     }
@@ -108,7 +128,7 @@ export async function getDashboardData(): Promise<DashboardData> {
   let websiteTraffic: DashboardData["websiteTraffic"];
   if (ga4Configured) {
     try {
-      const ga4 = await fetchGa4MonthToDate();
+      const ga4 = await fetchGa4MonthToDate(monthStart, asOf);
       websiteTraffic = { ...ga4, status: "live" };
     } catch {
       websiteTraffic = {
@@ -130,7 +150,7 @@ export async function getDashboardData(): Promise<DashboardData> {
   const socialMedia: DashboardData["socialMedia"] = [];
   if (instagramConfigured) {
     try {
-      const ig = await fetchInstagramStats();
+      const ig = await fetchInstagramStats(monthStart, asOf);
       socialMedia.push({
         platform: "Instagram",
         followers: ig.followers,
@@ -173,7 +193,7 @@ export async function getDashboardData(): Promise<DashboardData> {
 
   if (facebookConfigured) {
     try {
-      const fb = await fetchFacebookStats();
+      const fb = await fetchFacebookStats(monthStart, asOf);
       socialMedia.push({
         platform: "Facebook",
         followers: fb.followers,
@@ -221,12 +241,14 @@ export async function getDashboardData(): Promise<DashboardData> {
 
   return {
     month: monthLabel,
+    asOfDate: toDateStr(asOf),
     daysComplete,
     daysAvailable,
     leadSources,
     totals: {
       ...totals,
       trackingForLeads: projectPace(totals.leadCount, daysComplete, daysAvailable),
+      trackingForAppointments: projectPace(totals.appointments, daysComplete, daysAvailable),
       trackingForSold: projectPace(totals.sold, daysComplete, daysAvailable),
       ninetyDayAvg: null,
     },

@@ -32,13 +32,14 @@ export interface Ga4Metrics {
   conversionRate: number;
 }
 
-export async function fetchGa4MonthToDate(): Promise<Ga4Metrics> {
+function toDateStr(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+export async function fetchGa4MonthToDate(monthStart: Date, asOf: Date): Promise<Ga4Metrics> {
   if (!ga4Configured) throw new Error("GA4 not configured");
 
   const { token } = await getClient().getAccessToken();
-
-  const now = new Date();
-  const firstOfMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
 
   const res = await fetch(
     `https://analyticsdata.googleapis.com/v1beta/properties/${PROPERTY_ID}:runReport`,
@@ -49,7 +50,7 @@ export async function fetchGa4MonthToDate(): Promise<Ga4Metrics> {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        dateRanges: [{ startDate: firstOfMonth, endDate: "today" }],
+        dateRanges: [{ startDate: toDateStr(monthStart), endDate: toDateStr(asOf) }],
         metrics: [
           { name: "sessions" },
           { name: "totalUsers" },

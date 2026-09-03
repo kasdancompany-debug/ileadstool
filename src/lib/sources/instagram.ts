@@ -22,12 +22,13 @@ export interface InstagramStats {
   } | null;
 }
 
-export async function fetchInstagramStats(): Promise<InstagramStats> {
+export async function fetchInstagramStats(monthStart: Date, asOf: Date): Promise<InstagramStats> {
   if (!instagramConfigured) throw new Error("Instagram not configured");
 
-  const now = new Date();
-  const monthStart = Math.floor(new Date(now.getFullYear(), now.getMonth(), 1).getTime() / 1000);
-  const nowUnix = Math.floor(now.getTime() / 1000);
+  const sinceUnix = Math.floor(monthStart.getTime() / 1000);
+  const untilUnix = Math.floor(
+    new Date(asOf.getFullYear(), asOf.getMonth(), asOf.getDate(), 23, 59, 59).getTime() / 1000
+  );
 
   const profileRes = await fetch(
     `https://graph.facebook.com/v21.0/${IG_ACCOUNT_ID}?fields=followers_count&access_token=${IG_ACCESS_TOKEN}`,
@@ -37,7 +38,7 @@ export async function fetchInstagramStats(): Promise<InstagramStats> {
   const profile = await profileRes.json();
 
   const mediaRes = await fetch(
-    `https://graph.facebook.com/v21.0/${IG_ACCOUNT_ID}/media?fields=caption,permalink,timestamp,like_count,comments_count,insights.metric(views)&since=${monthStart}&until=${nowUnix}&limit=100&access_token=${IG_ACCESS_TOKEN}`,
+    `https://graph.facebook.com/v21.0/${IG_ACCOUNT_ID}/media?fields=caption,permalink,timestamp,like_count,comments_count,insights.metric(views)&since=${sinceUnix}&until=${untilUnix}&limit=100&access_token=${IG_ACCESS_TOKEN}`,
     { cache: "no-store" }
   );
   if (!mediaRes.ok) throw new Error(`Instagram media fetch failed: ${mediaRes.status}`);

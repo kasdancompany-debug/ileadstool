@@ -132,11 +132,11 @@ export interface BkdLeadCounts {
 }
 
 /**
- * Pulls MTD lead/appointment/sold counts per active channel via the `bkd_analytics`
- * tool, broken down by lead source. Throws on any failure — callers should catch
- * and fall back to manual overrides.
+ * Pulls lead/appointment/sold counts per active channel via the `bkd_analytics`
+ * tool, broken down by lead source, for [monthStart, asOf] inclusive. Throws on
+ * any failure — callers should catch and fall back to manual overrides.
  */
-export async function fetchMonthToDateCounts(monthStart: Date): Promise<BkdLeadCounts> {
+export async function fetchMonthToDateCounts(monthStart: Date, asOf: Date): Promise<BkdLeadCounts> {
   await initialize();
   const { tools } = await listTools();
 
@@ -144,7 +144,7 @@ export async function fetchMonthToDateCounts(monthStart: Date): Promise<BkdLeadC
   if (!analyticsTool) throw new Error("No analytics tool exposed by BKD MCP server");
 
   const from_date = toDateStr(monthStart);
-  const to_date = toDateStr(new Date());
+  const to_date = toDateStr(asOf);
 
   const [leads, sold, appointments] = await Promise.all([
     callTool<AnalyticsResult>(analyticsTool.name, { metric: "leads", group_by: "source", from_date, to_date }),

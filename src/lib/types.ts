@@ -42,6 +42,7 @@ export interface SocialMediaRow {
 
 export interface DashboardData {
   month: string;
+  asOfDate: string;
   daysComplete: number;
   daysAvailable: number;
   leadSources: LeadSourceRow[];
@@ -50,6 +51,7 @@ export interface DashboardData {
     appointments: number;
     sold: number;
     trackingForLeads: number | null;
+    trackingForAppointments: number | null;
     trackingForSold: number | null;
     ninetyDayAvg: number | null;
   };

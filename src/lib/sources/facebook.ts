@@ -38,12 +38,13 @@ interface FacebookPost {
   comments?: { summary: { total_count: number } };
 }
 
-export async function fetchFacebookStats(): Promise<FacebookStats> {
+export async function fetchFacebookStats(monthStart: Date, asOf: Date): Promise<FacebookStats> {
   if (!facebookConfigured) throw new Error("Facebook not configured");
 
-  const now = new Date();
-  const monthStart = Math.floor(new Date(now.getFullYear(), now.getMonth(), 1).getTime() / 1000);
-  const nowUnix = Math.floor(now.getTime() / 1000);
+  const sinceUnix = Math.floor(monthStart.getTime() / 1000);
+  const untilUnix = Math.floor(
+    new Date(asOf.getFullYear(), asOf.getMonth(), asOf.getDate(), 23, 59, 59).getTime() / 1000
+  );
 
   const profileRes = await fetch(
     `https://graph.facebook.com/v21.0/${FB_PAGE_ID}?fields=fan_count&access_token=${FB_ACCESS_TOKEN}`,
@@ -53,7 +54,7 @@ export async function fetchFacebookStats(): Promise<FacebookStats> {
   const profile = await profileRes.json();
 
   const postsRes = await fetch(
-    `https://graph.facebook.com/v21.0/${FB_PAGE_ID}/posts?fields=message,permalink_url,shares,reactions.summary(true),comments.summary(true)&since=${monthStart}&until=${nowUnix}&limit=100&access_token=${FB_ACCESS_TOKEN}`,
+    `https://graph.facebook.com/v21.0/${FB_PAGE_ID}/posts?fields=message,permalink_url,shares,reactions.summary(true),comments.summary(true)&since=${sinceUnix}&until=${untilUnix}&limit=100&access_token=${FB_ACCESS_TOKEN}`,
     { cache: "no-store" }
   );
   if (!postsRes.ok) throw new Error(`Facebook posts fetch failed: ${postsRes.status}`);
