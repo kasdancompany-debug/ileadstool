@@ -20,7 +20,7 @@ export interface LeadSourceRow {
 export interface WebsiteTraffic {
   sessions: number | null;
   uniqueVisitors: number | null;
-  conversionRate: number | null;
+  avgSessionDurationSec: number | null;
   status: SourceStatus;
 }
 

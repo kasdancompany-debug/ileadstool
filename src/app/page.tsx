@@ -21,6 +21,13 @@ function num(n: number | null) {
   return n === null ? "—" : n.toLocaleString();
 }
 
+function formatDuration(sec: number | null): string {
+  if (sec === null) return "—";
+  const m = Math.floor(sec / 60);
+  const s = Math.round(sec % 60);
+  return m > 0 ? `${m}m ${s}s` : `${s}s`;
+}
+
 // Distinguishes "nothing posted yet this month" from "not actually connected" —
 // the latest post regardless of month, so a fresh-month zero reads as quiet
 // rather than broken.
@@ -542,11 +549,9 @@ export default function Dashboard() {
                   <dd className="tabular font-mono text-neutral-200">{num(data.websiteTraffic.uniqueVisitors)}</dd>
                 </div>
                 <div className="flex justify-between">
-                  <dt className="text-neutral-500">Conversion</dt>
+                  <dt className="text-neutral-500">Avg. session</dt>
                   <dd className="tabular font-mono text-neutral-200">
-                    {data.websiteTraffic.conversionRate === null
-                      ? "—"
-                      : `${(data.websiteTraffic.conversionRate * 100).toFixed(1)}%`}
+                    {formatDuration(data.websiteTraffic.avgSessionDurationSec)}
                   </dd>
                 </div>
               </dl>

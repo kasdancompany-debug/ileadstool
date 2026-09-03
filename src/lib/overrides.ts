@@ -18,7 +18,7 @@ import { Pool } from "pg";
 
 export interface Overrides {
   leadSources: Record<string, { leadCount?: number; appointments?: number; sold?: number }>;
-  websiteTraffic: { sessions?: number; uniqueVisitors?: number; conversionRate?: number };
+  websiteTraffic: { sessions?: number; uniqueVisitors?: number; avgSessionDurationSec?: number };
   socialMedia: Record<string, { followers?: number; views?: string; highestPerformingPost?: string }>;
 }
 

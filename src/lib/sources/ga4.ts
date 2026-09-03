@@ -29,7 +29,7 @@ function getClient() {
 export interface Ga4Metrics {
   sessions: number;
   uniqueVisitors: number;
-  conversionRate: number;
+  avgSessionDurationSec: number;
 }
 
 function toDateStr(d: Date): string {
@@ -54,7 +54,7 @@ export async function fetchGa4MonthToDate(monthStart: Date, asOf: Date): Promise
         metrics: [
           { name: "sessions" },
           { name: "totalUsers" },
-          { name: "sessionConversionRate" },
+          { name: "averageSessionDuration" },
         ],
       }),
       cache: "no-store",
@@ -67,8 +67,8 @@ export async function fetchGa4MonthToDate(monthStart: Date, asOf: Date): Promise
   const row = json.rows?.[0]?.metricValues ?? [];
   const sessions = Number(row[0]?.value ?? 0);
   const uniqueVisitors = Number(row[1]?.value ?? 0);
-  // sessionConversionRate is already a 0-1 fraction of sessions with a key event.
-  const conversionRate = Number(row[2]?.value ?? 0);
+  // averageSessionDuration comes back in seconds.
+  const avgSessionDurationSec = Number(row[2]?.value ?? 0);
 
-  return { sessions, uniqueVisitors, conversionRate };
+  return { sessions, uniqueVisitors, avgSessionDurationSec };
 }

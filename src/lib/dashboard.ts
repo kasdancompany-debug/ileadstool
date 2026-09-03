@@ -150,7 +150,7 @@ export async function getDashboardData(dateParam?: string): Promise<DashboardDat
       websiteTraffic = {
         sessions: overrides.websiteTraffic.sessions ?? null,
         uniqueVisitors: overrides.websiteTraffic.uniqueVisitors ?? null,
-        conversionRate: overrides.websiteTraffic.conversionRate ?? null,
+        avgSessionDurationSec: overrides.websiteTraffic.avgSessionDurationSec ?? null,
         status: "error",
       };
     }
@@ -158,7 +158,7 @@ export async function getDashboardData(dateParam?: string): Promise<DashboardDat
     websiteTraffic = {
       sessions: overrides.websiteTraffic.sessions ?? null,
       uniqueVisitors: overrides.websiteTraffic.uniqueVisitors ?? null,
-      conversionRate: overrides.websiteTraffic.conversionRate ?? null,
+      avgSessionDurationSec: overrides.websiteTraffic.avgSessionDurationSec ?? null,
       status: "manual",
     };
   }
