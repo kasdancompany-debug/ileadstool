@@ -134,8 +134,9 @@ export async function getDashboardData(): Promise<DashboardData> {
       socialMedia.push({
         platform: "Instagram",
         followers: ig.followers,
-        views: String(ig.viewsThisMonth),
         metricLabel: "Views",
+        metricValue: ig.viewsThisMonth.toLocaleString(),
+        breakdown: [{ label: "Posts", value: ig.postCountThisMonth.toLocaleString() }],
         highestPerformingPost: ig.topPost
           ? {
               text: shortenPostText(ig.topPost.caption),
@@ -150,8 +151,9 @@ export async function getDashboardData(): Promise<DashboardData> {
       socialMedia.push({
         platform: "Instagram",
         followers: manual?.followers ?? null,
-        views: manual?.views ?? null,
         metricLabel: "Views",
+        metricValue: manual?.views ?? null,
+        breakdown: [],
         highestPerformingPost: manualTopPost(manual?.highestPerformingPost),
         status: "error",
       });
@@ -161,8 +163,9 @@ export async function getDashboardData(): Promise<DashboardData> {
     socialMedia.push({
       platform: "Instagram",
       followers: manual?.followers ?? null,
-      views: manual?.views ?? null,
       metricLabel: "Views",
+      metricValue: manual?.views ?? null,
+      breakdown: [],
       highestPerformingPost: manualTopPost(manual?.highestPerformingPost),
       status: "manual",
     });
@@ -174,8 +177,14 @@ export async function getDashboardData(): Promise<DashboardData> {
       socialMedia.push({
         platform: "Facebook",
         followers: fb.followers,
-        views: `${fb.engagementThisMonth.toLocaleString()} (${fb.likesThisMonth.toLocaleString()} likes · ${fb.commentsThisMonth.toLocaleString()} comments · ${fb.sharesThisMonth.toLocaleString()} shares, across ${fb.postCountThisMonth} ${fb.postCountThisMonth === 1 ? "post" : "posts"})`,
         metricLabel: "Engagement",
+        metricValue: fb.engagementThisMonth.toLocaleString(),
+        breakdown: [
+          { label: "Likes", value: fb.likesThisMonth.toLocaleString() },
+          { label: "Comments", value: fb.commentsThisMonth.toLocaleString() },
+          { label: "Shares", value: fb.sharesThisMonth.toLocaleString() },
+          { label: "Posts", value: fb.postCountThisMonth.toLocaleString() },
+        ],
         highestPerformingPost: fb.topPost
           ? {
               text: shortenPostText(fb.topPost.message),
@@ -190,8 +199,9 @@ export async function getDashboardData(): Promise<DashboardData> {
       socialMedia.push({
         platform: "Facebook",
         followers: manual?.followers ?? null,
-        views: manual?.views ?? null,
         metricLabel: "Engagement",
+        metricValue: manual?.views ?? null,
+        breakdown: [],
         highestPerformingPost: manualTopPost(manual?.highestPerformingPost),
         status: "error",
       });
@@ -201,8 +211,9 @@ export async function getDashboardData(): Promise<DashboardData> {
     socialMedia.push({
       platform: "Facebook",
       followers: manual?.followers ?? null,
-      views: manual?.views ?? null,
       metricLabel: "Engagement",
+      metricValue: manual?.views ?? null,
+      breakdown: [],
       highestPerformingPost: manualTopPost(manual?.highestPerformingPost),
       status: "manual",
     });

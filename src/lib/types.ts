@@ -25,11 +25,17 @@ export interface TopPost {
   stats: string;
 }
 
+export interface StatChip {
+  label: string;
+  value: string;
+}
+
 export interface SocialMediaRow {
   platform: string;
   followers: number | null;
-  views: string | null;
   metricLabel: string;
+  metricValue: string | null;
+  breakdown: StatChip[];
   highestPerformingPost: TopPost | null;
   status: SourceStatus;
 }

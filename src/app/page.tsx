@@ -251,8 +251,14 @@ export default function Dashboard() {
                 <dl className="space-y-1.5 text-sm">
                   <div className="flex justify-between gap-4 border-t border-hairline pt-2">
                     <dt className="shrink-0 text-neutral-500">{s.metricLabel}</dt>
-                    <dd className="tabular text-right font-mono text-neutral-200">{s.views ?? "—"}</dd>
+                    <dd className="tabular text-right font-mono text-neutral-200">{s.metricValue ?? "—"}</dd>
                   </div>
+                  {s.breakdown.map((b) => (
+                    <div key={b.label} className="flex justify-between gap-4">
+                      <dt className="shrink-0 text-neutral-500">{b.label}</dt>
+                      <dd className="tabular text-right font-mono text-neutral-200">{b.value}</dd>
+                    </div>
+                  ))}
                 </dl>
                 <div className="mt-3 border-l-2 border-accent/50 pl-3">
                   <p className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500">Top post</p>

@@ -12,6 +12,7 @@ export const instagramConfigured = Boolean(IG_ACCOUNT_ID && IG_ACCESS_TOKEN);
 export interface InstagramStats {
   followers: number;
   viewsThisMonth: number;
+  postCountThisMonth: number;
   topPost: {
     caption: string;
     permalink: string;
@@ -44,7 +45,8 @@ export async function fetchInstagramStats(): Promise<InstagramStats> {
 
   let topPost: InstagramStats["topPost"] = null;
   let totalViews = 0;
-  for (const item of media.data ?? []) {
+  const mediaData = media.data ?? [];
+  for (const item of mediaData) {
     const views = Number(
       item.insights?.data?.find((m: { name: string }) => m.name === "views")?.values?.[0]?.value ?? 0
     );
@@ -63,6 +65,7 @@ export async function fetchInstagramStats(): Promise<InstagramStats> {
   return {
     followers: Number(profile.followers_count ?? 0),
     viewsThisMonth: totalViews,
+    postCountThisMonth: mediaData.length,
     topPost,
   };
 }
