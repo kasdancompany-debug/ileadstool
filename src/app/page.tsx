@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import type { DashboardData, SourceStatus } from "@/lib/types";
+import { useEffect, useState, useCallback, useRef } from "react";
+import type { DashboardData, LeadSourceRow, SourceStatus } from "@/lib/types";
 import type { Overrides } from "@/lib/overrides";
 
 function StatusDot({ status }: { status: SourceStatus }) {
@@ -27,15 +27,190 @@ function Eyebrow({ children }: { children: React.ReactNode }) {
   );
 }
 
-function todayStr(): string {
-  const d = new Date();
+function dateToStr(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function todayStr(): string {
+  return dateToStr(new Date());
 }
 
 function addDays(dateStr: string, delta: number): string {
   const [y, m, d] = dateStr.split("-").map(Number);
-  const dt = new Date(y, m - 1, d + delta);
-  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
+  return dateToStr(new Date(y, m - 1, d + delta));
+}
+
+function parseDateStr(dateStr: string): Date {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
+// Builds a 7-wide grid of calendar cells for the given month, padded with the
+// tail of the previous month and the head of the next so every week is full.
+function getCalendarCells(year: number, month: number): { date: Date; inMonth: boolean }[] {
+  const startWeekday = new Date(year, month, 1).getDay();
+  const daysInThisMonth = new Date(year, month + 1, 0).getDate();
+  const daysInPrevMonth = new Date(year, month, 0).getDate();
+
+  const cells: { date: Date; inMonth: boolean }[] = [];
+  for (let i = startWeekday - 1; i >= 0; i--) {
+    cells.push({ date: new Date(year, month - 1, daysInPrevMonth - i), inMonth: false });
+  }
+  for (let d = 1; d <= daysInThisMonth; d++) {
+    cells.push({ date: new Date(year, month, d), inMonth: true });
+  }
+  while (cells.length % 7 !== 0) {
+    const last = cells[cells.length - 1].date;
+    cells.push({ date: new Date(last.getFullYear(), last.getMonth(), last.getDate() + 1), inMonth: false });
+  }
+  return cells;
+}
+
+const WEEKDAY_LABELS = ["S", "M", "T", "W", "T", "F", "S"];
+
+function DatePicker({
+  value,
+  max,
+  onChange,
+}: {
+  value: string;
+  max: string;
+  onChange: (date: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [viewYear, setViewYear] = useState(() => parseDateStr(value).getFullYear());
+  const [viewMonth, setViewMonth] = useState(() => parseDateStr(value).getMonth());
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function onDocClick(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, []);
+
+  function toggleOpen() {
+    if (!open) {
+      const d = parseDateStr(value);
+      setViewYear(d.getFullYear());
+      setViewMonth(d.getMonth());
+    }
+    setOpen((v) => !v);
+  }
+
+  function shiftMonth(delta: number) {
+    const d = new Date(viewYear, viewMonth + delta, 1);
+    setViewYear(d.getFullYear());
+    setViewMonth(d.getMonth());
+  }
+
+  const cells = getCalendarCells(viewYear, viewMonth);
+  const label = parseDateStr(value).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        type="button"
+        onClick={toggleOpen}
+        className="flex items-center gap-2 rounded-lg border border-hairline bg-surface px-3 py-1.5 text-sm font-medium text-neutral-200 transition-colors hover:border-accent/50 focus:border-accent focus:outline-none"
+      >
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-accent">
+          <rect x="3" y="5" width="18" height="16" rx="2" />
+          <path d="M3 10h18M8 3v4M16 3v4" />
+        </svg>
+        {label}
+      </button>
+      {open && (
+        <div className="absolute left-0 top-full z-20 mt-2 w-64 rounded-xl border border-hairline bg-surface-2 p-3 shadow-2xl shadow-black/60">
+          <div className="mb-2 flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => shiftMonth(-1)}
+              className="flex h-7 w-7 items-center justify-center rounded-md text-neutral-400 transition-colors hover:bg-surface hover:text-accent"
+            >
+              ‹
+            </button>
+            <p className="text-xs font-semibold uppercase tracking-wide text-neutral-200">
+              {new Date(viewYear, viewMonth, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" })}
+            </p>
+            <button
+              type="button"
+              onClick={() => shiftMonth(1)}
+              className="flex h-7 w-7 items-center justify-center rounded-md text-neutral-400 transition-colors hover:bg-surface hover:text-accent"
+            >
+              ›
+            </button>
+          </div>
+          <div className="grid grid-cols-7 gap-y-1 text-center text-[10px] font-semibold uppercase text-neutral-600">
+            {WEEKDAY_LABELS.map((w, i) => (
+              <div key={i}>{w}</div>
+            ))}
+          </div>
+          <div className="mt-1 grid grid-cols-7 gap-y-1">
+            {cells.map(({ date, inMonth }, i) => {
+              const dStr = dateToStr(date);
+              const isSelected = dStr === value;
+              const isToday = dStr === todayStr();
+              const isFuture = dStr > max;
+              return (
+                <button
+                  type="button"
+                  key={i}
+                  disabled={isFuture}
+                  onClick={() => {
+                    onChange(dStr);
+                    setOpen(false);
+                  }}
+                  className={[
+                    "tabular mx-auto flex h-7 w-7 items-center justify-center rounded-md text-xs transition-colors",
+                    !inMonth ? "text-neutral-700" : "text-neutral-300",
+                    isSelected ? "bg-accent font-bold text-neutral-950" : !isFuture ? "hover:bg-surface hover:text-neutral-50" : "",
+                    isToday && !isSelected ? "border border-accent/60 text-accent" : "",
+                    isFuture ? "cursor-not-allowed opacity-30" : "",
+                  ].join(" ")}
+                >
+                  {date.getDate()}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+type SortKey = "label" | "leadCount" | "appointments" | "sold" | "trackingForLeads" | "trackingForSold" | "ninetyDayAvg";
+
+function SortableHeader({
+  label,
+  sortKey,
+  align = "right",
+  sort,
+  onSort,
+}: {
+  label: string;
+  sortKey: SortKey;
+  align?: "left" | "right";
+  sort: { key: SortKey; dir: "asc" | "desc" } | null;
+  onSort: (key: SortKey) => void;
+}) {
+  const active = sort?.key === sortKey;
+  return (
+    <th className={`px-4 py-3 text-[11px] font-semibold uppercase tracking-wider ${align === "right" ? "text-right" : "text-left"}`}>
+      <button
+        type="button"
+        onClick={() => onSort(sortKey)}
+        className={`group inline-flex items-center gap-1 transition-colors hover:text-accent ${align === "right" ? "flex-row-reverse" : ""} ${active ? "text-accent" : ""}`}
+      >
+        {label}
+        <span className={`text-[8px] ${active ? "opacity-100" : "opacity-0 group-hover:opacity-40"}`}>
+          {active && sort.dir === "asc" ? "▲" : "▼"}
+        </span>
+      </button>
+    </th>
+  );
 }
 
 export default function Dashboard() {
@@ -45,6 +220,7 @@ export default function Dashboard() {
   const [saving, setSaving] = useState(false);
   const [pending, setPending] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string>(todayStr());
+  const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" } | null>(null);
 
   const load = useCallback(async (date?: string) => {
     setPending(true);
@@ -68,6 +244,14 @@ export default function Dashboard() {
   function changeDate(next: string) {
     setSelectedDate(next);
     load(next);
+  }
+
+  function toggleSort(key: SortKey) {
+    setSort((prev) => {
+      if (!prev || prev.key !== key) return { key, dir: "desc" };
+      if (prev.dir === "desc") return { key, dir: "asc" };
+      return null;
+    });
   }
 
   async function save() {
@@ -110,13 +294,27 @@ export default function Dashboard() {
 
   const monthProgress = Math.min(100, Math.round((data.daysComplete / data.daysAvailable) * 100));
   const isToday = selectedDate >= todayStr();
-  const maxLeadCount = Math.max(1, ...data.leadSources.map((r) => r.leadCount));
 
   const heroStats = [
     { label: "MTD Leads", value: data.totals.leadCount, pace: data.totals.trackingForLeads },
     { label: "Appointments", value: data.totals.appointments, pace: data.totals.trackingForAppointments },
     { label: "Sold", value: data.totals.sold, pace: data.totals.trackingForSold },
   ];
+
+  const sortedLeadSources: LeadSourceRow[] = sort
+    ? [...data.leadSources].sort((a, b) => {
+        const av = a[sort.key];
+        const bv = b[sort.key];
+        if (typeof av === "string" || typeof bv === "string") {
+          const cmp = String(av).localeCompare(String(bv));
+          return sort.dir === "asc" ? cmp : -cmp;
+        }
+        if (av === null && bv === null) return 0;
+        if (av === null) return 1;
+        if (bv === null) return -1;
+        return sort.dir === "asc" ? av - bv : bv - av;
+      })
+    : data.leadSources;
 
   return (
     <div className="min-h-screen p-6 text-neutral-100 md:p-10">
@@ -176,13 +374,7 @@ export default function Dashboard() {
               >
                 ‹
               </button>
-              <input
-                type="date"
-                value={selectedDate}
-                max={todayStr()}
-                onChange={(e) => e.target.value && changeDate(e.target.value)}
-                className="[color-scheme:dark] rounded-lg border border-hairline bg-surface px-3 py-1.5 text-sm text-neutral-200 focus:border-accent focus:outline-none"
-              />
+              <DatePicker value={selectedDate} max={todayStr()} onChange={changeDate} />
               <button
                 aria-label="Next day"
                 disabled={isToday}
@@ -241,17 +433,17 @@ export default function Dashboard() {
           <table className="w-full min-w-[820px] border-collapse text-sm">
             <thead>
               <tr className="text-left text-neutral-500">
-                <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wider">Lead source</th>
-                <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-wider">MTD leads</th>
-                <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-wider">Appts</th>
-                <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-wider">Sold</th>
-                <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-wider">Pace (leads)</th>
-                <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-wider">Pace (sold)</th>
-                <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-wider">90d avg</th>
+                <SortableHeader label="Lead source" sortKey="label" align="left" sort={sort} onSort={toggleSort} />
+                <SortableHeader label="MTD leads" sortKey="leadCount" sort={sort} onSort={toggleSort} />
+                <SortableHeader label="Appts" sortKey="appointments" sort={sort} onSort={toggleSort} />
+                <SortableHeader label="Sold" sortKey="sold" sort={sort} onSort={toggleSort} />
+                <SortableHeader label="Pace (leads)" sortKey="trackingForLeads" sort={sort} onSort={toggleSort} />
+                <SortableHeader label="Pace (sold)" sortKey="trackingForSold" sort={sort} onSort={toggleSort} />
+                <SortableHeader label="90d avg" sortKey="ninetyDayAvg" sort={sort} onSort={toggleSort} />
               </tr>
             </thead>
             <tbody>
-              {data.leadSources.map((row) => (
+              {sortedLeadSources.map((row) => (
                 <tr key={row.key} className="group border-t border-hairline transition-colors hover:bg-surface-2">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2.5">
@@ -259,7 +451,7 @@ export default function Dashboard() {
                       <span className="text-neutral-200">{row.label}</span>
                     </div>
                   </td>
-                  <td className="relative px-4 py-3 text-right">
+                  <td className="px-4 py-3 text-right">
                     {editing && row.status !== "live" ? (
                       <input
                         type="number"
@@ -268,22 +460,13 @@ export default function Dashboard() {
                         onChange={(e) => setLeadOverride(row.key, "leadCount", e.target.value)}
                       />
                     ) : (
-                      <>
-                        {row.leadCount > 0 && (
-                          <div
-                            aria-hidden
-                            className="pointer-events-none absolute inset-y-1.5 right-0 rounded-l-md bg-accent/[0.12]"
-                            style={{ width: `${Math.max(6, (row.leadCount / maxLeadCount) * 100)}%` }}
-                          />
-                        )}
-                        <span className="tabular relative font-mono text-base font-bold text-neutral-50">
-                          {row.leadCount.toLocaleString()}
-                        </span>
-                      </>
+                      <span className="tabular font-mono text-xl font-bold text-neutral-50">
+                        {row.leadCount.toLocaleString()}
+                      </span>
                     )}
                   </td>
                   {(["appointments", "sold"] as const).map((field) => (
-                    <td key={field} className="tabular px-4 py-3 text-right font-mono text-neutral-300">
+                    <td key={field} className="tabular px-4 py-3 text-right font-mono text-base text-neutral-300">
                       {editing && row.status !== "live" ? (
                         <input
                           type="number"
