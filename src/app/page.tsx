@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import type { DashboardData, LeadSourceRow, SourceStatus } from "@/lib/types";
 import type { Overrides } from "@/lib/overrides";
+import { buildSheetCsv, downloadCsv } from "@/lib/csvExport";
 
 function StatusDot({ status }: { status: SourceStatus }) {
   const color =
@@ -380,6 +381,12 @@ export default function Dashboard() {
                   <span className="hidden sm:inline">Edit manual values</span>
                 </button>
               )}
+              <button
+                onClick={() => downloadCsv(`ilead-tracker-${data.asOfDate}.csv`, buildSheetCsv(data))}
+                className="whitespace-nowrap rounded-lg border border-hairline px-4 py-2 text-sm text-neutral-300 transition-colors hover:bg-surface-2"
+              >
+                Export CSV
+              </button>
               <button
                 onClick={() => load(selectedDate)}
                 className="whitespace-nowrap rounded-lg border border-hairline px-4 py-2 text-sm text-neutral-300 transition-colors hover:bg-surface-2"
